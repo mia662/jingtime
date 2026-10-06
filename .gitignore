@@ -1,0 +1,23 @@
+# Build output and local verification reports
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+/Release/
+/Verification/
+/.dotnet-home/
+
+# Machine-specific settings and shortcuts
+clock-position.json
+*.lnk
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/
+
+# Credentials and local environment settings
+.env
+.env.*
+*.pfx
+*.p12
+*.key
