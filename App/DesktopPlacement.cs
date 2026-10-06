@@ -59,6 +59,13 @@ internal static class DesktopPlacement
         IntPtr handle = FindWindow(null, title);
         if (handle == IntPtr.Zero) return;
         // A second launch reveals the existing clock; it never creates another one.
+        RevealHandle(handle);
+    }
+
+    internal static void Reveal(Window window) => RevealHandle(new WindowInteropHelper(window).Handle);
+
+    private static void RevealHandle(IntPtr handle)
+    {
         SetWindowPos(handle, new IntPtr(-1), 0, 0, 0, 0, NoSize | 0x0002 | NoActivate | ShowWindow);
     }
 

@@ -20,10 +20,12 @@
 
 ```powershell
 ./Build.ps1 -Verify
-./Release/BeijingClock.exe
+./Start-Clock.ps1
 ```
 
 `-Verify` 会执行核心测试，构建结果位于 `Release/`。也可以双击其中的 `BeijingClock.exe`。仅运行编译好的程序时，需要 .NET 8 Windows Desktop Runtime。
+
+从 IDE、自动化工具或临时终端启动时，使用 `Start-Clock.ps1`。它通过当前 Windows 桌面的资源管理器启动小钟，避免小钟随启动工具的进程会话一起关闭。直接在资源管理器中双击程序或通过 Windows 登录自启，也由桌面启动。
 
 如果 SDK 不在 PATH 中，可指定路径；也可选择其他输出目录：
 

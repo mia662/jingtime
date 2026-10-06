@@ -152,6 +152,9 @@ internal sealed class ClockWindow : Window
         CreateTray();
         SystemEvents.DisplaySettingsChanged += DisplaySettingsChanged;
         _timer.Start();
+        // A terminal or startup launcher may pass a hidden initial show state.
+        // Reveal after WPF finishes startup without stealing keyboard focus.
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => DesktopPlacement.Reveal(this)));
     }
 
     private void UpdateClock(DateTimeOffset instant)
