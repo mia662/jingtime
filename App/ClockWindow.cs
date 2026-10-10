@@ -37,6 +37,7 @@ internal sealed class ClockWindow : Window
     private readonly string? _verificationDirectory;
     private Forms.NotifyIcon? _tray;
     private System.Drawing.Icon? _trayIcon;
+    private ForegroundWatcher? _foregroundWatcher;
     private bool _positionReady;
     private bool _warnedSave;
     private ClockSnapshot? _snapshot;
@@ -132,7 +133,11 @@ internal sealed class ClockWindow : Window
         Closing += (_, _) => SavePosition();
         Closed += OnClosed;
         _timer.Interval = TimeSpan.FromSeconds(1);
-        _timer.Tick += (_, _) => UpdateClock(DateTimeOffset.UtcNow);
+        _timer.Tick += (_, _) =>
+        {
+            UpdateClock(DateTimeOffset.UtcNow);
+            MaintainTopmost();
+        };
         UpdateClock(DateTimeOffset.UtcNow);
     }
 
@@ -151,6 +156,7 @@ internal sealed class ClockWindow : Window
         _positionReady = true;
         CreateTray();
         SystemEvents.DisplaySettingsChanged += DisplaySettingsChanged;
+        _foregroundWatcher = new ForegroundWatcher(Dispatcher, MaintainTopmost);
         _timer.Start();
         // A terminal or startup launcher may pass a hidden initial show state.
         // Reveal after WPF finishes startup without stealing keyboard focus.
@@ -175,12 +181,24 @@ internal sealed class ClockWindow : Window
         _trayIcon = TrayIcon.Create();
         _tray = new Forms.NotifyIcon { Icon = _trayIcon, Text = "北京时间小钟", Visible = true };
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("显示小钟", null, (_, _) => Dispatcher.Invoke(() => { Show(); Topmost = true; }));
+        menu.Items.Add("显示小钟", null, (_, _) => Dispatcher.Invoke(ShowClock));
         menu.Items.Add("回到右上角", null, (_, _) => Dispatcher.Invoke(ResetPosition));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出小钟", null, (_, _) => Dispatcher.Invoke(Close));
         _tray.ContextMenuStrip = menu;
-        _tray.DoubleClick += (_, _) => Dispatcher.Invoke(() => { Show(); Topmost = true; });
+        _tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowClock);
+    }
+
+    private void ShowClock()
+    {
+        Show();
+        DesktopPlacement.Reveal(this);
+    }
+
+    private void MaintainTopmost()
+    {
+        if (!_positionReady || _card.ContextMenu?.IsOpen == true || _tray?.ContextMenuStrip?.Visible == true) return;
+        DesktopPlacement.MaintainTopmost(this);
     }
 
     private void ResetPosition()
@@ -228,6 +246,7 @@ internal sealed class ClockWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _timer.Stop();
+        _foregroundWatcher?.Dispose();
         SystemEvents.DisplaySettingsChanged -= DisplaySettingsChanged;
         _positionReady = false;
         if (_tray is not null)

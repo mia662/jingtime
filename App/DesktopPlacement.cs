@@ -64,6 +64,32 @@ internal static class DesktopPlacement
 
     internal static void Reveal(Window window) => RevealHandle(new WindowInteropHelper(window).Handle);
 
+    internal static void MaintainTopmost(Window window)
+    {
+        IntPtr handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero || !IsWindowVisible(handle) || IsIconic(handle)) return;
+        if ((GetWindowLongPtr(handle, -20).ToInt64() & 8) == 0 || IsCovered(handle))
+            RevealHandle(handle);
+    }
+
+    private static bool IsCovered(IntPtr handle)
+    {
+        if (!GetWindowRect(handle, out var clock)) return false;
+        IntPtr above = GetWindow(handle, 3); // GW_HWNDPREV: next window above us.
+        for (int count = 0; above != IntPtr.Zero && count < 256; count++, above = GetWindow(above, 3))
+        {
+            if (!IsWindowVisible(above) || IsIconic(above)) continue;
+            GetWindowThreadProcessId(above, out uint pid);
+            // Our context menus and tooltips must stay above the clock.
+            if (pid == Environment.ProcessId || !GetWindowRect(above, out var other)) continue;
+            if (other.Left >= clock.Right || other.Right <= clock.Left ||
+                other.Top >= clock.Bottom || other.Bottom <= clock.Top) continue;
+            if (DwmGetWindowAttribute(above, 14, out int cloaked, sizeof(int)) == 0 && cloaked != 0) continue;
+            return true;
+        }
+        return false;
+    }
+
     private static void RevealHandle(IntPtr handle)
     {
         SetWindowPos(handle, new IntPtr(-1), 0, 0, 0, 0, NoSize | 0x0002 | NoActivate | ShowWindow);
@@ -109,4 +135,18 @@ internal static class DesktopPlacement
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindow(IntPtr window, uint command);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 }
